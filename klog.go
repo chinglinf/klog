@@ -407,6 +407,8 @@ func init() {
 	logging.setVState(0, nil, false)
 	logging.logDir = ""
 	logging.logFile = ""
+	logging.logFileMaxNumber = 0
+	logging.logFileMaxAge = 0
 	logging.logFileMaxSizeMB = 1800
 	logging.toStderr = true
 	logging.alsoToStderr = false
@@ -425,6 +427,8 @@ func InitFlags(flagset *flag.FlagSet) {
 
 	flagset.StringVar(&logging.logDir, "log_dir", logging.logDir, "If non-empty, write log files in this directory")
 	flagset.StringVar(&logging.logFile, "log_file", logging.logFile, "If non-empty, use this log file")
+	flagset.Uint64Var(&logging.logFileMaxNumber, "log_file_max_number", logging.logFileMaxNumber, "max number of log files to keep, cleanup earlier log files.")
+	flagset.Uint64Var(&logging.logFileMaxAge, "log_file_max_age", logging.logFileMaxAge, "max age of log files to keep, cleanup earlier log files. Unit is second.")
 	flagset.Uint64Var(&logging.logFileMaxSizeMB, "log_file_max_size", logging.logFileMaxSizeMB,
 		"Defines the maximum size a log file can grow to. Unit is megabytes. "+
 			"If the value is 0, the maximum file size is unlimited.")
@@ -491,6 +495,11 @@ type loggingT struct {
 	// If non-empty, specifies the path of the file to write logs. mutually exclusive
 	// with the log_dir option.
 	logFile string
+
+	// max age to cleanup old logs, unit is second, disable if logFile is specified.
+	logFileMaxAge uint64
+	// max number of logs files to keep, disable if logFile is specified.
+	logFileMaxNumber uint64
 
 	// When logFile is specified, this limiter makes sure the logFile won't exceeds a certain size. When exceeds, the
 	// logFile will be cleaned up. If this value is 0, no size limitation will be applied to logFile.
@@ -1101,6 +1110,7 @@ func (sb *syncBuffer) Write(p []byte) (n int, err error) {
 // The startup argument indicates whether this is the initial startup of klog.
 // If startup is true, existing files are opened for appending instead of truncated.
 func (sb *syncBuffer) rotateFile(now time.Time, startup bool) error {
+	sb.cleanup(severityName[sb.sev], now)
 	if sb.file != nil {
 		sb.Flush()
 		sb.file.Close()

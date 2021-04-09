@@ -11,7 +11,7 @@ import (
 	"strings"
 
 	"github.com/go-logr/logr"
-	"k8s.io/klog/v2"
+	"github/chinglinwen/klog"
 )
 
 // Option is a functional option that reconfigures the logger created with New.
