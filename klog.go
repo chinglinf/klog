@@ -1110,7 +1110,6 @@ func (sb *syncBuffer) Write(p []byte) (n int, err error) {
 // The startup argument indicates whether this is the initial startup of klog.
 // If startup is true, existing files are opened for appending instead of truncated.
 func (sb *syncBuffer) rotateFile(now time.Time, startup bool) error {
-	sb.cleanup(severityName[sb.sev], now)
 	if sb.file != nil {
 		sb.Flush()
 		sb.file.Close()
@@ -1120,6 +1119,7 @@ func (sb *syncBuffer) rotateFile(now time.Time, startup bool) error {
 	if err != nil {
 		return err
 	}
+	sb.cleanup(severityName[sb.sev], now)
 	if startup {
 		fileInfo, err := sb.file.Stat()
 		if err != nil {

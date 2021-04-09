@@ -3,14 +3,19 @@ package klog
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 )
 
 // cleanup clean up files by age and then by number.
 func (sb *syncBuffer) cleanup(tag string, t time.Time) error {
-	cleanupFilesByAge(logging.logDir, logNamePrefix(tag), logging.logFileMaxAge)
-	cleanupFilesByNumber(logging.logDir, logNamePrefix(tag), int(logging.logFileMaxNumber))
+	if logging.logFileMaxAge > 0 {
+		cleanupFilesByAge(logging.logDir, logNamePrefix(tag), logging.logFileMaxAge)
+	}
+	if logging.logFileMaxNumber > 0 {
+		cleanupFilesByNumber(logging.logDir, logNamePrefix(tag), int(logging.logFileMaxNumber))
+	}
 	return nil
 }
 
@@ -39,7 +44,12 @@ func cleanupFilesByAge(dir, prefix string, maxAge uint64) error {
 		}
 		t := time.Now().Sub(f.ModTime())
 		expect := time.Duration(maxAge) * time.Minute
-		fmt.Printf("name: %#v, t: %v(expect: %v), old: %v\n", f.Name(), t, expect, t >= expect)
+		if t >= expect {
+			err = os.RemoveAll(filepath.Join(dir, f.Name()))
+			if err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
@@ -60,7 +70,6 @@ func cleanupFilesByNumber(dir, prefix string, maxNumber int) error {
 		if !strings.HasPrefix(name, prefix) {
 			continue
 		}
-		fmt.Printf("exist name: %v\n", name)
 		names = append(names, name)
 	}
 	n := len(names)
@@ -69,7 +78,7 @@ func cleanupFilesByNumber(dir, prefix string, maxNumber int) error {
 		return nil
 	}
 
-	todelete := names[:n-maxNumber-1]
+	todelete := names[:n-maxNumber]
 	for _, name := range todelete {
 		if !strings.HasPrefix(name, prefix) {
 			continue
